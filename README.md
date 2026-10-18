@@ -6,6 +6,15 @@
 
 Escáner de documentos para Android hecho con Flutter. Toma fotos de hojas, credenciales o tarjetas, las endereza, las limpia, reconoce el texto y las exporta a PDF. **Todo se procesa en el teléfono**: no hay servidor, cuentas ni anuncios.
 
+<p align="center">
+  <img src="docs/capturas/03_deteccion.jpg" width="24%">
+  <img src="docs/capturas/05_filtros.jpg" width="24%">
+  <img src="docs/capturas/07_anotar.jpg" width="24%">
+  <img src="docs/capturas/09_pdf.jpg" width="24%">
+</p>
+
+Más capturas en [docs/capturas](docs/capturas).
+
 ## Qué hace
 
 **Captura**

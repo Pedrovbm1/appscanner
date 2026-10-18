@@ -1,0 +1,4 @@
+storeFile=C:/ruta/fuera/del/repo/mi-clave.jks
+storePassword=CAMBIA_ESTO
+keyAlias=mi-alias
+keyPassword=CAMBIA_ESTO

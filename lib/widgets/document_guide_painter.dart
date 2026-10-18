@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
 
 class DocumentGuidePainter extends CustomPainter {
-  const DocumentGuidePainter({this.ratio = 210 / 297});
+  const DocumentGuidePainter({
+    required this.previewRect,
+    this.ratio = 210 / 297,
+  });
 
+  final Rect previewRect;
   final double ratio;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double maxWidth = size.width * 0.84;
-    final double maxHeight = size.height * 0.72;
+    final Rect area = previewRect;
+    if (area.isEmpty) {
+      return;
+    }
+    final double maxWidth = area.width * 0.84;
+    final double maxHeight = area.height * 0.72;
     double guideWidth = maxWidth;
     double guideHeight = guideWidth / ratio;
     if (guideHeight > maxHeight) {
       guideHeight = maxHeight;
       guideWidth = guideHeight * ratio;
     }
-    final double centerY = ratio > 1 ? size.height / 2 : size.height * 0.44;
+    final double centerY =
+        area.top + area.height / 2;
     final Rect guide = Rect.fromCenter(
-      center: Offset(size.width / 2, centerY),
+      center: Offset(area.center.dx, centerY),
       width: guideWidth,
       height: guideHeight,
     );
     final RRect guideRRect = RRect.fromRectAndRadius(guide, const Radius.circular(14));
 
     final Path dimPath = Path()
-      ..addRect(Offset.zero & size)
+      ..addRect(area)
       ..addRRect(guideRRect)
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(dimPath, Paint()..color = Colors.black.withValues(alpha: 0.45));
@@ -76,5 +85,5 @@ class DocumentGuidePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant DocumentGuidePainter oldDelegate) =>
-      oldDelegate.ratio != ratio;
+      oldDelegate.ratio != ratio || oldDelegate.previewRect != previewRect;
 }

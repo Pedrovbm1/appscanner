@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -7,13 +5,13 @@ class LiveQuadPainter extends CustomPainter {
   const LiveQuadPainter({
     required this.quad,
     required this.stable,
-    required this.previewSize,
+    required this.previewRect,
     required this.sensorOrientation,
   });
 
   final List<Offset> quad;
   final bool stable;
-  final Size previewSize;
+  final Rect previewRect;
   final int sensorOrientation;
 
   static Offset toPortrait(Offset sensorPoint, int sensorOrientation) =>
@@ -26,26 +24,19 @@ class LiveQuadPainter extends CustomPainter {
   static List<Offset> mapToScreen(
     List<Offset> sensorQuad, {
     required int sensorOrientation,
-    required Size previewSize,
-    required Size box,
+    required Rect previewRect,
   }) {
-    if (previewSize.width <= 0 || previewSize.height <= 0) {
+    if (previewRect.isEmpty) {
       return const [];
     }
-    final scale = math.max(
-      box.width / previewSize.width,
-      box.height / previewSize.height,
-    );
-    final drawnWidth = previewSize.width * scale;
-    final drawnHeight = previewSize.height * scale;
-    final offset = Offset(
-      (box.width - drawnWidth) / 2,
-      (box.height - drawnHeight) / 2,
-    );
     return [
       for (final point in sensorQuad)
-        _scaled(toPortrait(point, sensorOrientation), drawnWidth, drawnHeight) +
-            offset,
+        previewRect.topLeft +
+            _scaled(
+              toPortrait(point, sensorOrientation),
+              previewRect.width,
+              previewRect.height,
+            ),
     ];
   }
 
@@ -57,8 +48,7 @@ class LiveQuadPainter extends CustomPainter {
     final points = mapToScreen(
       quad,
       sensorOrientation: sensorOrientation,
-      previewSize: previewSize,
-      box: size,
+      previewRect: previewRect,
     );
     if (points.length < 3) {
       return;
@@ -84,7 +74,7 @@ class LiveQuadPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant LiveQuadPainter oldDelegate) =>
       oldDelegate.stable != stable ||
-      oldDelegate.previewSize != previewSize ||
+      oldDelegate.previewRect != previewRect ||
       oldDelegate.sensorOrientation != sensorOrientation ||
       !listEquals(oldDelegate.quad, quad);
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
@@ -8,13 +9,16 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../main.dart';
 import '../models/capture_mode.dart';
 import '../models/scan_session.dart';
+import '../services/camera_settings.dart';
 import '../services/document_detector.dart';
 import '../services/id_composer.dart';
 import '../services/image_filters.dart';
 import '../services/import_service.dart';
 import '../services/session_store.dart';
+import '../services/volume_keys.dart';
 import '../widgets/document_guide_painter.dart';
 import '../widgets/import_progress_dialog.dart';
 import '../widgets/live_quad_painter.dart';
@@ -31,7 +35,11 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
+class _CameraScreenState extends State<CameraScreen>
+    with WidgetsBindingObserver, RouteAware {
+  static const double _topBarHeight = 48;
+  static const double _bottomControlsHeight = 200;
+
   CameraController? _controller;
   Future<void>? _initFuture;
   String? _error;
@@ -54,6 +62,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   Size? _lastFrameSize;
   bool _batchMode = false;
   ScanFilter _batchFilter = ScanFilter.enhance;
+  bool _settingsTouched = false;
 
   bool get _waitingForBack => _idFrontCropPath != null;
 
@@ -63,11 +72,14 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_restoreSettings());
     _initFuture = _initCamera();
   }
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
+    unawaited(VolumeKeys.disable());
     WidgetsBinding.instance.removeObserver(this);
     final controller = _controller;
     _controller = null;
@@ -98,6 +110,56 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         _initFuture = _initCamera();
       });
     }
+  }
+
+  Future<void> _restoreSettings() async {
+    final settings = await CameraSettings.load();
+    if (!mounted || _settingsTouched) {
+      return;
+    }
+    setState(() {
+      _autoCapture = settings.autoCapture;
+      _batchMode = settings.batchMode;
+    });
+    if (settings.autoCapture) {
+      await _startStream();
+    }
+  }
+
+  void _saveSettings() {
+    _settingsTouched = true;
+    unawaited(
+      CameraSettings.save(autoCapture: _autoCapture, batchMode: _batchMode),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPush() => unawaited(VolumeKeys.enable(_onVolumePressed));
+
+  @override
+  void didPopNext() => unawaited(VolumeKeys.enable(_onVolumePressed));
+
+  @override
+  void didPushNext() => unawaited(VolumeKeys.disable());
+
+  void _onVolumePressed() {
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return;
+    }
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _busy) {
+      return;
+    }
+    _onShutterTap();
   }
 
   Future<void> _initCamera() async {
@@ -247,6 +309,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   void _toggleBatch() {
     setState(() => _batchMode = !_batchMode);
+    _saveSettings();
   }
 
   Future<void> _releaseController(CameraController controller) async {
@@ -301,6 +364,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       _autoCapture = next;
       _resetStability();
     });
+    _saveSettings();
     if (next) {
       await _startStream();
     } else {
@@ -802,12 +866,32 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   Widget _cameraView() {
+    final controller = _controller!;
     return Stack(
       fit: StackFit.expand,
       children: [
-        _coverPreview(_controller!),
-        CustomPaint(painter: DocumentGuidePainter(ratio: _mode.frameRatio)),
-        ?_liveQuad(_controller!),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final previewRect = _previewRectFor(
+              constraints.biggest,
+              _portraitPreviewSize(controller),
+              MediaQuery.paddingOf(context),
+            );
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                _containPreview(controller, previewRect),
+                CustomPaint(
+                  painter: DocumentGuidePainter(
+                    ratio: _mode.frameRatio,
+                    previewRect: previewRect,
+                  ),
+                ),
+                ?_liveQuad(controller, previewRect),
+              ],
+            );
+          },
+        ),
         SafeArea(
           child: Column(
             children: [
@@ -875,19 +959,41 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     );
   }
 
-  Widget? _liveQuad(CameraController controller) {
-    final quad = _lastQuad;
-    if (!_autoCapture || quad == null) {
-      return null;
-    }
+  Size? _portraitPreviewSize(CameraController controller) {
     final preview = controller.value.previewSize;
     final frame = _lastFrameSize;
-    final portrait = preview != null
+    return preview != null
         ? Size(preview.height, preview.width)
         : frame != null
             ? Size(frame.height, frame.width)
             : null;
-    if (portrait == null) {
+  }
+
+  Rect _previewRectFor(Size box, Size? portrait, EdgeInsets padding) {
+    if (portrait == null || portrait.isEmpty || box.isEmpty) {
+      return Offset.zero & box;
+    }
+    final scale = math.min(
+      box.width / portrait.width,
+      box.height / portrait.height,
+    );
+    final width = portrait.width * scale;
+    final height = portrait.height * scale;
+    final bandTop = padding.top + _topBarHeight;
+    final bandHeight =
+        box.height - padding.bottom - _bottomControlsHeight - bandTop;
+    final double top = height <= bandHeight
+        ? bandTop + (bandHeight - height) / 2
+        : math.min(
+            math.max((box.height - height) / 2, bandTop),
+            box.height - height,
+          );
+    return Rect.fromLTWH((box.width - width) / 2, top, width, height);
+  }
+
+  Widget? _liveQuad(CameraController controller, Rect previewRect) {
+    final quad = _lastQuad;
+    if (!_autoCapture || quad == null) {
       return null;
     }
     return IgnorePointer(
@@ -895,7 +1001,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         painter: LiveQuadPainter(
           quad: quad,
           stable: _stableCount >= 2,
-          previewSize: portrait,
+          previewRect: previewRect,
           sensorOrientation: controller.description.sensorOrientation,
         ),
       ),
@@ -999,21 +1105,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     );
   }
 
-  Widget _coverPreview(CameraController controller) {
+  Widget _containPreview(CameraController controller, Rect previewRect) {
     final preview = controller.value.previewSize;
     if (preview == null) {
       return Center(child: CameraPreview(controller));
     }
-    return ClipRect(
-      child: OverflowBox(
-        alignment: Alignment.center,
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: preview.height,
-            height: preview.width,
-            child: CameraPreview(controller),
-          ),
+    return Positioned.fromRect(
+      rect: previewRect,
+      child: FittedBox(
+        fit: BoxFit.fill,
+        child: SizedBox(
+          width: preview.height,
+          height: preview.width,
+          child: CameraPreview(controller),
         ),
       ),
     );

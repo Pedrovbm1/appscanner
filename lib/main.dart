@@ -9,6 +9,8 @@ Future<void> main() async {
   runApp(const EscanerApp());
 }
 
+final routeObserver = RouteObserver<ModalRoute<void>>();
+
 class EscanerApp extends StatelessWidget {
   const EscanerApp({super.key});
 
@@ -21,6 +23,7 @@ class EscanerApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00796B)),
         useMaterial3: true,
       ),
+      navigatorObservers: [routeObserver],
       home: const HomeScreen(),
     );
   }

@@ -274,3 +274,10 @@ Checklist de publicación (Play Console):
 - [ ] Revisar la licencia Community de `syncfusion_flutter_pdf` (gratis solo para individuos/empresas pequeñas).
 - [ ] Prueba interna o cerrada antes de producción (Google exige pruebas cerradas con testers para cuentas personales nuevas).
 
+
+### Publicación en GitHub (2026-10-18)
+
+- Repositorio público con licencia MIT: https://github.com/Pedrovbm1/appscanner
+- Release v1.0.0 con `AppScanner-v1.0.0.apk` (44 MB, solo arm64, versionCode 1, firmado con la clave de subida). Probado en el S10+: instala encima de la versión anterior conservando el historial; arranque, cámara y OCR sin errores.
+- Hallazgo: el plugin de Flutter siempre declara arm64, armeabi-v7a y x86_64, aunque se compile solo para arm64, porque varios plugins traen librerías de 32 bits. Un teléfono de 32 bits instalaría ese APK y se cerraría al abrirlo. Se resuelve con `--split-per-abi`; `force-version-code-ignoring-abi=true` evita que la versión pase a 2001 y bloquee actualizar después desde Play. Comando completo en el README.
+- Capturas y texto para redes en `docs/capturas/` (documentos de ejemplo inventados).

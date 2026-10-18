@@ -15,6 +15,12 @@ Escáner de documentos para Android hecho con Flutter. Toma fotos de hojas, cred
 
 Más capturas en [docs/capturas](docs/capturas).
 
+## 📲 Descargar
+
+**[⬇️ Descargar AppScanner para Android](https://github.com/Pedrovbm1/appscanner/releases/latest)** (44 MB, Android 7.0 o superior, teléfonos de 64 bits).
+
+No necesitas saber programar: abre ese enlace desde tu teléfono, toca el archivo `.apk` y sigue los pasos de instalación que vienen en la página. Como la app no viene de la Play Store, Android te pedirá permitir la instalación desde tu navegador.
+
 ## Qué hace
 
 **Captura**
@@ -73,6 +79,14 @@ adb install -r build/app/outputs/flutter-apk/app-debug.apk
    ```
 
 Si no existe `key.properties`, el release se firma con la clave de debug para que el build no se rompa.
+
+Para el APK que se publica en GitHub Releases:
+
+```bash
+flutter build apk --release --target-platform android-arm64 --split-per-abi --android-project-arg=force-version-code-ignoring-abi=true
+```
+
+`--split-per-abi` hace que el APK traiga solo las librerías de arm64; sin él, algunos plugins meten librerías de 32 bits y un teléfono de 32 bits podría instalar la app y cerrarse al abrirla. `force-version-code-ignoring-abi` conserva el número de versión del `pubspec.yaml`, para que una versión posterior de Play Store pueda actualizar encima. El archivo sale en `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`.
 
 ## Estructura
 

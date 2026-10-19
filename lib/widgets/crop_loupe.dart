@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class CropLoupe extends StatelessWidget {
   const CropLoupe({
     super.key,
@@ -34,19 +36,19 @@ class CropLoupe extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       foregroundDecoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(color: Colors.white, width: 3),
       ),
       child: ClipOval(
         child: ColoredBox(
-          color: Colors.black,
+          color: AppColors.camBg,
           child: SizedBox(
             width: diameter,
             height: diameter,
@@ -82,21 +84,24 @@ class CropLoupe extends StatelessWidget {
 class _CrosshairPainter extends CustomPainter {
   const _CrosshairPainter();
 
-  static const double _arm = 12;
+  static const double _gap = 5;
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
     final outline = Paint()
-      ..strokeWidth = 3
-      ..color = Colors.black.withValues(alpha: 0.6);
+      ..strokeWidth = 4
+      ..color = Colors.black.withValues(alpha: 0.35);
     final line = Paint()
-      ..strokeWidth = 1
-      ..color = const Color(0xFF69F0AE);
+      ..strokeWidth = 2
+      ..color = AppColors.mint;
     for (final paint in [outline, line]) {
-      canvas.drawLine(c.translate(-_arm, 0), c.translate(_arm, 0), paint);
-      canvas.drawLine(c.translate(0, -_arm), c.translate(0, _arm), paint);
+      canvas.drawLine(Offset(0, c.dy), c.translate(-_gap, 0), paint);
+      canvas.drawLine(c.translate(_gap, 0), Offset(size.width, c.dy), paint);
+      canvas.drawLine(Offset(c.dx, 0), c.translate(0, -_gap), paint);
+      canvas.drawLine(c.translate(0, _gap), Offset(c.dx, size.height), paint);
     }
+    canvas.drawCircle(c, 1.5, Paint()..color = AppColors.mint);
   }
 
   @override

@@ -100,6 +100,22 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  assets:
+    - assets/icon/icon.png
+    - assets/fonts/BricolageGrotesque-OFL.txt
+    - assets/fonts/InstrumentSans-OFL.txt
+
+  fonts:
+    - family: BricolageGrotesque
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-Bold.ttf
+          weight: 700
+    - family: InstrumentSans
+      fonts:
+        - asset: assets/fonts/InstrumentSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/InstrumentSans-Bold.ttf
+          weight: 700
 
 # App icon. Re-generate with: dart run flutter_launcher_icons
 # (artwork source: python assets/icon/make_icon.py)

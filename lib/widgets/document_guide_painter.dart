@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class DocumentGuidePainter extends CustomPainter {
   const DocumentGuidePainter({
     required this.previewRect,
@@ -36,21 +38,21 @@ class DocumentGuidePainter extends CustomPainter {
       ..addRect(area)
       ..addRRect(guideRRect)
       ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(dimPath, Paint()..color = Colors.black.withValues(alpha: 0.45));
+    canvas.drawPath(dimPath, Paint()..color = AppColors.camBg.withValues(alpha: 0.4));
 
     canvas.drawRRect(
       guideRRect,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
-        ..color = Colors.white.withValues(alpha: 0.85),
+        ..color = AppColors.camText.withValues(alpha: 0.7),
     );
 
     final bracket = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round
-      ..color = const Color(0xFF69F0AE);
+      ..color = AppColors.mint;
     const double len = 26;
 
     canvas.drawPath(

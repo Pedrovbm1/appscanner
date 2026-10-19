@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppTheme.registerFontLicenses();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const EscanerApp());
 }
@@ -19,10 +21,7 @@ class EscanerApp extends StatelessWidget {
     return MaterialApp(
       title: 'AppScanner',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00796B)),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
       navigatorObservers: [routeObserver],
       home: const HomeScreen(),
     );

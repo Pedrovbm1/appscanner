@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/scan_session.dart';
 import '../services/session_store.dart';
+import '../theme/app_theme.dart';
 
 class MoveCopyTarget {
   const MoveCopyTarget.newDocument() : session = null;
@@ -65,15 +66,27 @@ class _MoveCopyTargetSheetState extends State<_MoveCopyTargetSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
               child: Text(
                 widget.title,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: AppTheme.display(20, color: AppColors.ink),
               ),
             ),
             ListTile(
-              leading: Icon(Icons.note_add_outlined, color: colors.primary),
-              title: const Text('Documento nuevo'),
+              minTileHeight: 64,
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.chip,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.note_add_outlined, color: colors.primary),
+              ),
+              title: const Text(
+                'Documento nuevo',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               onTap: () => Navigator.of(
                 context,
               ).pop(const MoveCopyTarget.newDocument()),
@@ -144,7 +157,12 @@ class _MoveCopyTargetSheetState extends State<_MoveCopyTargetSheet> {
           ),
         ),
       ),
-      title: Text(session.title, overflow: TextOverflow.ellipsis),
+      title: Text(
+        session.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
       subtitle: Text(count == 1 ? '1 página' : '$count páginas'),
       onTap: () => Navigator.of(context).pop(MoveCopyTarget.existing(session)),
     );

@@ -5,12 +5,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../services/document_detector.dart';
+import '../theme/app_theme.dart';
 import '../widgets/crop_loupe.dart';
 
 class CropScreen extends StatefulWidget {
-  const CropScreen({super.key, required this.file});
+  const CropScreen({super.key, required this.file, this.pageLabel});
 
   final File file;
+  final String? pageLabel;
 
   @override
   State<CropScreen> createState() => _CropScreenState();
@@ -177,173 +179,261 @@ class _CropScreenState extends State<CropScreen> {
   Widget build(BuildContext context) {
     final image = _image;
     final corners = _corners;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Ajusta el recorte'),
-        actions: [
-          TextButton(
-            onPressed: corners == null ? null : _resetFrame,
-            child: const Text('Reiniciar', style: TextStyle(color: Colors.white)),
+    final pageLabel = widget.pageLabel;
+    return Theme(
+      data: AppTheme.camera(Theme.of(context)),
+      child: Scaffold(
+        backgroundColor: AppColors.camBg,
+        appBar: AppBar(
+          toolbarHeight: 64,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Volver a la cámara',
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Expanded(
-                child: image == null
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : corners == null
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(color: Colors.white),
-                                SizedBox(height: 12),
-                                Text(
-                                  'Detectando bordes…',
-                                  style: TextStyle(color: Colors.white70),
-                                ),
-                              ],
-                            ),
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final imgW = image.width.toDouble();
-                              final imgH = image.height.toDouble();
-                              final availableW = math.max(
-                                constraints.maxWidth - _horizontalPadding * 2,
-                                1.0,
-                              );
-                              final availableH = math.max(
-                                constraints.maxHeight - _verticalPadding * 2,
-                                1.0,
-                              );
-                              final scale = math.min(
-                                availableW / imgW,
-                                availableH / imgH,
-                              );
-                              _scale = scale;
-                              _origin = Offset(
-                                (constraints.maxWidth - imgW * scale) / 2,
-                                (constraints.maxHeight - imgH * scale) / 2,
-                              );
-                              final screenCorners = [
-                                for (final c in corners) _toScreen(c),
-                              ];
-                              final active = _activeCorner;
-                              final touch = _touchPoint;
-                              final loupeTopLeft = active == null ||
-                                      touch == null
-                                  ? null
-                                  : _loupeTopLeft(constraints.biggest, touch);
-                              return GestureDetector(
-                                onPanStart: _onPanStart,
-                                onPanUpdate: _onPanUpdate,
-                                onPanEnd: (_) => _endDrag(),
-                                onPanCancel: _endDrag,
-                                child: Stack(
-                                  children: [
-                                    Positioned(
-                                      left: _origin.dx,
-                                      top: _origin.dy,
-                                      width: imgW * scale,
-                                      height: imgH * scale,
-                                      child: Image.file(
-                                        widget.file,
-                                        fit: BoxFit.fill,
-                                      ),
-                                    ),
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: _CropOverlayPainter(
-                                          corners: screenCorners,
-                                          active: _activeCorner,
-                                        ),
-                                      ),
-                                    ),
-                                    if (active != null && loupeTopLeft != null)
-                                      Positioned(
-                                        left: loupeTopLeft.dx,
-                                        top: loupeTopLeft.dy,
-                                        child: IgnorePointer(
-                                          child: CropLoupe(
-                                            file: widget.file,
-                                            imageSize: Size(imgW, imgH),
-                                            focus: corners[active],
-                                            scale: scale,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+          titleSpacing: 4,
+          title: const Text('Ajusta las esquinas'),
+          actions: [
+            if (pageLabel != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: Center(
+                  child: Text(
+                    pageLabel,
+                    style: const TextStyle(fontSize: 14, color: AppColors.camMuted),
+                  ),
+                ),
               ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+          ],
+        ),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: ColoredBox(
+                        color: AppColors.camSurface,
+                        child: _stage(image, corners),
+                      ),
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 14, 24, 0),
+                  child: Text(
+                    'Arrastra un punto. La lupa te ayuda a ser preciso.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppColors.camTextSoft),
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _cropping
-                              ? null
-                              : () => Navigator.of(context).pop(),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white54),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          icon: const Icon(Icons.replay),
-                          label: const Text('Repetir'),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _toolButton(
+                                icon: Icons.replay,
+                                label: 'Repetir foto',
+                                onTap: _cropping
+                                    ? null
+                                    : () => Navigator.of(context).pop(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _toolButton(
+                                icon: Icons.fullscreen,
+                                label: 'Toda la foto',
+                                onTap: corners == null ? null : _resetFrame,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: (_cropping || corners == null) ? null : _crop,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: (_cropping || corners == null) ? null : _crop,
+                            iconAlignment: IconAlignment.end,
+                            icon: const Icon(Icons.arrow_forward, size: 20),
+                            label: const Text('Siguiente'),
                           ),
-                          icon: const Icon(Icons.crop),
-                          label: const Text('Recortar'),
                         ),
                       ),
                     ],
                   ),
                 ),
+              ],
+            ),
+            if (_cropping)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: AppColors.mint),
+                        SizedBox(height: 14),
+                        Text(
+                          'Enderezando…',
+                          style: TextStyle(
+                            color: AppColors.camText,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stage(ui.Image? image, List<Offset>? corners) {
+    if (image == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.mint),
+      );
+    }
+    if (corners == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppColors.mint),
+            SizedBox(height: 14),
+            Text(
+              'Detectando bordes…',
+              style: TextStyle(color: AppColors.camTextSoft, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final imgW = image.width.toDouble();
+        final imgH = image.height.toDouble();
+        final availableW = math.max(
+          constraints.maxWidth - _horizontalPadding * 2,
+          1.0,
+        );
+        final availableH = math.max(
+          constraints.maxHeight - _verticalPadding * 2,
+          1.0,
+        );
+        final scale = math.min(
+          availableW / imgW,
+          availableH / imgH,
+        );
+        _scale = scale;
+        _origin = Offset(
+          (constraints.maxWidth - imgW * scale) / 2,
+          (constraints.maxHeight - imgH * scale) / 2,
+        );
+        final screenCorners = [
+          for (final c in corners) _toScreen(c),
+        ];
+        final active = _activeCorner;
+        final touch = _touchPoint;
+        final loupeTopLeft = active == null || touch == null
+            ? null
+            : _loupeTopLeft(constraints.biggest, touch);
+        return GestureDetector(
+          onPanStart: _onPanStart,
+          onPanUpdate: _onPanUpdate,
+          onPanEnd: (_) => _endDrag(),
+          onPanCancel: _endDrag,
+          child: Stack(
+            children: [
+              Positioned(
+                left: _origin.dx,
+                top: _origin.dy,
+                width: imgW * scale,
+                height: imgH * scale,
+                child: Image.file(
+                  widget.file,
+                  fit: BoxFit.fill,
+                ),
+              ),
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _CropOverlayPainter(
+                    corners: screenCorners,
+                    active: _activeCorner,
+                  ),
+                ),
+              ),
+              if (active != null && loupeTopLeft != null)
+                Positioned(
+                  left: loupeTopLeft.dx,
+                  top: loupeTopLeft.dy,
+                  child: IgnorePointer(
+                    child: CropLoupe(
+                      file: widget.file,
+                      imageSize: Size(imgW, imgH),
+                      focus: corners[active],
+                      scale: scale,
+                    ),
+                  ),
+                ),
             ],
           ),
-          if (_cropping)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black54,
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(color: Colors.white),
-                      SizedBox(height: 12),
-                      Text(
-                        'Enderezando…',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
+        );
+      },
+    );
+  }
+
+  Widget _toolButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    final color = onTap == null ? AppColors.camMuted : AppColors.camText;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 24, color: color),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
+              ],
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -368,48 +458,58 @@ class _CropOverlayPainter extends CustomPainter {
       ..addRect(Offset.zero & size)
       ..addPath(quad, Offset.zero)
       ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(dim, Paint()..color = Colors.black.withValues(alpha: 0.55));
+    canvas.drawPath(dim, Paint()..color = Colors.black.withValues(alpha: 0.5));
+
+    if (active != null) {
+      final grid = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = Colors.white.withValues(alpha: 0.3);
+      for (final t in const [1 / 3, 2 / 3]) {
+        canvas.drawLine(
+          Offset.lerp(corners[0], corners[1], t)!,
+          Offset.lerp(corners[3], corners[2], t)!,
+          grid,
+        );
+        canvas.drawLine(
+          Offset.lerp(corners[0], corners[3], t)!,
+          Offset.lerp(corners[1], corners[2], t)!,
+          grid,
+        );
+      }
+    }
 
     canvas.drawPath(
       quad,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = Colors.white.withValues(alpha: 0.9),
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..color = AppColors.mint,
     );
-
-    final grid = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = Colors.white.withValues(alpha: 0.3);
-    for (final t in const [1 / 3, 2 / 3]) {
-      canvas.drawLine(
-        Offset.lerp(corners[0], corners[1], t)!,
-        Offset.lerp(corners[3], corners[2], t)!,
-        grid,
-      );
-      canvas.drawLine(
-        Offset.lerp(corners[0], corners[3], t)!,
-        Offset.lerp(corners[1], corners[2], t)!,
-        grid,
-      );
-    }
 
     for (var i = 0; i < corners.length; i++) {
       final isActive = i == active;
-      final radius = isActive ? 16.0 : 12.0;
+      final radius = isActive ? 17.0 : 13.0;
+      canvas.drawCircle(
+        corners[i],
+        radius + 2,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.25)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
       canvas.drawCircle(
         corners[i],
         radius,
-        Paint()..color = const Color(0xFF69F0AE),
+        Paint()..color = isActive ? Colors.white : AppColors.mint,
       );
       canvas.drawCircle(
         corners[i],
         radius,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..color = Colors.white,
+          ..strokeWidth = isActive ? 4 : 3
+          ..color = isActive ? AppColors.mint : Colors.white,
       );
     }
   }

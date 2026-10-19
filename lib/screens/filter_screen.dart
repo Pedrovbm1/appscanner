@@ -3,11 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../services/image_filters.dart';
+import '../theme/app_theme.dart';
+
+const _offLabel = Color(0xFFC9D8D4);
 
 class FilterScreen extends StatefulWidget {
-  const FilterScreen({super.key, required this.source});
+  const FilterScreen({super.key, required this.source, this.pageLabel});
 
   final File source;
+  final String? pageLabel;
 
   static final ValueNotifier<ScanFilter> lastUsed =
       ValueNotifier(ScanFilter.enhance);
@@ -111,102 +115,177 @@ class _FilterScreenState extends State<FilterScreen> {
         ? widget.source.path
         : _previews[_selected];
     if (path == null) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(child: CircularProgressIndicator(color: AppColors.mint));
     }
-    return Image.file(File(path), fit: BoxFit.contain, gaplessPlayback: true);
+    return Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Image.file(File(path), fit: BoxFit.contain, gaplessPlayback: true),
+      ),
+    );
   }
+
+  Widget _filterItem(ScanFilter filter) {
+    final isSelected = filter == _selected;
+    final look = _thumbLook(filter);
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _select(filter),
+        child: SizedBox(
+          width: 66,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: 60,
+                height: 72,
+                padding: const EdgeInsets.fromLTRB(8, 9, 8, 9),
+                decoration: BoxDecoration(
+                  color: look.bg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected ? AppColors.mint : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _thumbLine(0.75, 5, look.ink),
+                    for (final w in const [1.0, 0.9, 1.0, 0.65]) ...[
+                      const SizedBox(height: 4),
+                      _thumbLine(w, 3, look.line),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                filter.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : _offLabel,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _thumbLine(double widthFactor, double height, Color color) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(height: height, color: color),
+    );
+  }
+
+  ({Color bg, Color ink, Color line}) _thumbLook(ScanFilter filter) => switch (filter) {
+        ScanFilter.original => (bg: const Color(0xFFE4DFD4), ink: const Color(0xFF3B3833), line: const Color(0xFF9E998F)),
+        ScanFilter.enhance => (bg: const Color(0xFFFBFAF6), ink: const Color(0xFF1C1C1C), line: const Color(0xFF8F8F8F)),
+        ScanFilter.grayscale => (bg: const Color(0xFFE2E2E2), ink: const Color(0xFF333333), line: const Color(0xFF9A9A9A)),
+        ScanFilter.bw => (bg: Colors.white, ink: Colors.black, line: Colors.black),
+        ScanFilter.lighten => (bg: Colors.white, ink: const Color(0xFF5A5A5A), line: const Color(0xFFC4C4C4)),
+        ScanFilter.invert => (bg: const Color(0xFF111111), ink: Colors.white, line: const Color(0xFF9A9A9A)),
+        ScanFilter.noShadow => (bg: const Color(0xFFF6F6F4), ink: const Color(0xFF202020), line: const Color(0xFF9C9C9C)),
+      };
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Filtros'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Center(child: _preview()),
-                if (_processing || _saving)
-                  Container(
-                    color: Colors.black45,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                  ),
-              ],
-            ),
+    final pageLabel = widget.pageLabel;
+    return Theme(
+      data: AppTheme.camera(Theme.of(context)),
+      child: Scaffold(
+        backgroundColor: AppColors.camBg,
+        appBar: AppBar(
+          toolbarHeight: 64,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Volver al recorte',
           ),
-          SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 64,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: ScanFilter.values.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final filter = ScanFilter.values[index];
-                      final isSelected = filter == _selected;
-                      return Center(
-                        child: GestureDetector(
-                          onTap: () => _select(filter),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF00796B)
-                                  : Colors.white10,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFF69F0AE)
-                                    : Colors.white24,
-                              ),
-                            ),
-                            child: Text(
-                              filter.label,
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.white70,
-                                fontWeight:
-                                    isSelected ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+          titleSpacing: 4,
+          title: const Text('Filtros'),
+          actions: [
+            if (pageLabel != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: Center(
+                  child: Text(
+                    pageLabel,
+                    style: const TextStyle(fontSize: 14, color: AppColors.camMuted),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+                    child: _preview(),
+                  ),
+                  if (_processing || _saving)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      child: const Center(
+                        child: CircularProgressIndicator(color: AppColors.mint),
                       ),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Guardar página'),
+                    ),
+                ],
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 92 + MediaQuery.textScalerOf(context).scale(18),
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      itemCount: ScanFilter.values.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) =>
+                          _filterItem(ScanFilter.values[index]),
                     ),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _saving ? null : _save,
+                        icon: const Icon(Icons.check),
+                        label: const Text('Guardar página'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

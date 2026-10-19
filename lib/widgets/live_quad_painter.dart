@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class LiveQuadPainter extends CustomPainter {
   const LiveQuadPainter({
     required this.quad,
@@ -55,11 +57,11 @@ class LiveQuadPainter extends CustomPainter {
     }
     final path = Path()..addPolygon(points, true);
     final color = stable
-        ? const Color(0xFF69F0AE)
-        : Colors.white.withValues(alpha: 0.7);
+        ? AppColors.mint
+        : AppColors.mint.withValues(alpha: 0.75);
     canvas.drawPath(
       path,
-      Paint()..color = color.withValues(alpha: 0.12),
+      Paint()..color = AppColors.mint.withValues(alpha: stable ? 0.14 : 0.08),
     );
     canvas.drawPath(
       path,
@@ -69,6 +71,10 @@ class LiveQuadPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..color = color,
     );
+    final dot = Paint()..color = color;
+    for (final point in points) {
+      canvas.drawCircle(point, 7.5, dot);
+    }
   }
 
   @override
